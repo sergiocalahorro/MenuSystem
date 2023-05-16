@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "InputActionValue.h"
-#include "Interfaces/OnlineSessionInterface.h"
 
 #include "MenuSystemCharacter.generated.h"
 
@@ -66,53 +65,5 @@ public:
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
-
-#pragma region SESSION
-	
-protected:
-
-	/** Create game session */
-	UFUNCTION(BlueprintCallable)
-	void CreateGameSession();
-	
-	/** Join game session */
-	UFUNCTION(BlueprintCallable)
-	void JoinGameSession();
-
-	/** Function bound to delegate called when session's creation is complete */
-	void OnCreateSessionComplete(FName SessionName, bool bWasSuccessful);
-
-	/** Function bound to delegate called when finding sessions is complete */
-	void OnFindSessionsComplete(bool bWasSuccessful);
-
-	/** Function bound to delegate called when joining a session is complete */
-	void OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result);
-
-private:
-
-	/** Initialize online subsystem */
-	UFUNCTION()
-	void InitializeOnlineSubsystem();
-
-public:
-
-	/** Pointer to the online session interface */
-	IOnlineSessionPtr OnlineSessionInterface;
-
-private:
-
-	/** Delegate called when session's creation is complete */
-	FOnCreateSessionCompleteDelegate CreateSessionCompleteDelegate;
-
-	/** Delegate called when finding sessions is complete */
-	FOnFindSessionsCompleteDelegate FindSessionsCompleteDelegate;
-
-	/** Delegate called when a session is joined */
-	FOnJoinSessionCompleteDelegate JoinSessionCompleteDelegate;
-
-	/** Session search parameters */
-	TSharedPtr<FOnlineSessionSearch> SessionSearch;
-	
-#pragma endregion SESSION
 	
 };
