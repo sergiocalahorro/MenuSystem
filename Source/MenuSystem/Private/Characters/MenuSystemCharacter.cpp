@@ -52,6 +52,7 @@ AMenuSystemCharacter::AMenuSystemCharacter()
 	// Create delegates
 	CreateSessionCompleteDelegate = FOnCreateSessionCompleteDelegate::CreateUObject(this, &AMenuSystemCharacter::OnCreateSessionComplete);
 	FindSessionsCompleteDelegate = FOnFindSessionsCompleteDelegate::CreateUObject(this, &AMenuSystemCharacter::OnFindSessionsComplete);
+	JoinSessionCompleteDelegate = FOnJoinSessionCompleteDelegate::CreateUObject(this, &AMenuSystemCharacter::OnJoinSessionComplete);
 
 	// Initialize online subsystem
 	InitializeOnlineSubsystem();
@@ -159,7 +160,7 @@ void AMenuSystemCharacter::CreateGameSession()
 	}
 
 	// Destroy existing session (if any)
-	if (FNamedOnlineSession* ExistingSession = OnlineSessionInterface->GetNamedSession(NAME_GameSession))
+	if (OnlineSessionInterface->GetNamedSession(NAME_GameSession))
 	{
 		OnlineSessionInterface->DestroySession(NAME_GameSession);
 	}
@@ -175,41 +176,11 @@ void AMenuSystemCharacter::CreateGameSession()
 	SessionSettings->bUsesPresence = true;
 	SessionSettings->bUseLobbiesIfAvailable = true;
 	SessionSettings->NumPublicConnections = 4;
+	SessionSettings->Set(FName("MatchType"), FString("FreeForAll"), EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
 	
 	if (const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController())
 	{
 		OnlineSessionInterface->CreateSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, *SessionSettings);
-	}
-}
-
-/** Function bound to delegate called when session's creation is complete */
-void AMenuSystemCharacter::OnCreateSessionComplete(FName SessionName, bool bWasSuccessful)
-{
-	if (bWasSuccessful)
-	{
-		// Debug
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(
-				INDEX_NONE,
-				15.f,
-				FColor::Blue,
-				FString::Printf(TEXT("Created session: %s"), *SessionName.ToString())
-			);
-		}
-	}
-	else
-	{
-		// Debug
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(
-				INDEX_NONE,
-				15.f,
-				FColor::Red,
-				FString::Printf(TEXT("Failed to create session!"))
-			);
-		}
 	}
 }
 
@@ -235,9 +206,51 @@ void AMenuSystemCharacter::JoinGameSession()
 	}
 }
 
+/** Function bound to delegate called when session's creation is complete */
+void AMenuSystemCharacter::OnCreateSessionComplete(FName SessionName, bool bWasSuccessful)
+{
+	if (bWasSuccessful)
+	{
+		// Debug
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(
+				INDEX_NONE,
+				15.f,
+				FColor::Blue,
+				FString::Printf(TEXT("Created session: %s"), *SessionName.ToString())
+			);
+		}
+
+		// Travel server to Lobby level
+		if (UWorld* World = GetWorld())
+		{
+			World->ServerTravel("/Game/ThirdPerson/Maps/Lobby?listen");
+		}
+	}
+	else
+	{
+		// Debug
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(
+				INDEX_NONE,
+				15.f,
+				FColor::Red,
+				FString::Printf(TEXT("Failed to create session!"))
+			);
+		}
+	}
+}
+
 /** Function bound to delegate called when finding sessions is complete */
 void AMenuSystemCharacter::OnFindSessionsComplete(bool bWasSuccessful)
 {
+	if (!OnlineSessionInterface.IsValid())
+	{
+		return;
+	}
+	
 	for (const FOnlineSessionSearchResult& Result : SessionSearch->SearchResults)
 	{
 		if (!Result.IsValid())
@@ -245,18 +258,71 @@ void AMenuSystemCharacter::OnFindSessionsComplete(bool bWasSuccessful)
 			continue;
 		}
 		
+		FString Id = Result.GetSessionIdStr();
+		FString User = Result.Session.OwningUserName;
+		FString MatchType;
+		Result.Session.SessionSettings.Get(FName("MatchType"), MatchType);
+
 		// Debug
 		if (GEngine)
 		{
-			FString Id = Result.GetSessionIdStr();
-			FString User = Result.Session.OwningUserName;
-			
 			GEngine->AddOnScreenDebugMessage(
 				INDEX_NONE,
 				15.f,
 				FColor::Cyan,
-				FString::Printf(TEXT("Id: %s, User: %s"), *Id, *User)
+				FString::Printf(TEXT("Id: %s, User: %s, Joining Match Type: %s"), *Id, *User, *MatchType)
 			);
+		}
+		
+		if (MatchType == FString("FreeForAll"))
+		{
+			// Debug
+			if (GEngine)
+			{
+				GEngine->AddOnScreenDebugMessage(
+					INDEX_NONE,
+					15.f,
+					FColor::Cyan,
+					FString::Printf(TEXT("Joining Match Type: %s"), *MatchType)
+				);
+			}
+
+			OnlineSessionInterface->AddOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegate);
+
+			if (const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController())
+			{
+				OnlineSessionInterface->JoinSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, Result);
+			}
+		}
+	}
+}
+
+/** Function bound to delegate called when joining a session is complete */
+void AMenuSystemCharacter::OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result)
+{
+	if (!OnlineSessionInterface.IsValid())
+	{
+		return;
+	}
+
+	FString Address;
+	if (OnlineSessionInterface->GetResolvedConnectString(SessionName, Address))
+	{
+		// Debug
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(
+				INDEX_NONE,
+				15.f,
+				FColor::Yellow,
+				FString::Printf(TEXT("Address: %s"), *Address)
+			);
+		}
+
+		// Travel client to Lobby
+		if (APlayerController* PlayerController = GetGameInstance()->GetFirstLocalPlayerController())
+		{
+			PlayerController->ClientTravel(Address, TRAVEL_Absolute);
 		}
 	}
 }
