@@ -44,7 +44,7 @@ public:
 
 	/** Setup menu */
 	UFUNCTION(BlueprintCallable)
-	void MenuSetup(const FMultiplayerSessionSettings& InMultiplayerSessionSettings);
+	void SetupMenu(const FMultiplayerSessionSettings& InMultiplayerSessionSettings);
 
 private:
 
@@ -55,6 +55,10 @@ private:
 	/** Callback for JoinButton's OnClicked event */
 	UFUNCTION()
 	void JoinButtonClicked();
+
+	/** Callback for QuitButton's OnClicked event */
+	UFUNCTION()
+	void QuitButtonClicked();
 
 	/** Remove menu */
 	UFUNCTION()
@@ -69,6 +73,10 @@ private:
 	/** Button used for joining an already existing game session */
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UButton> JoinButton;
+
+	/** Button used for quitting the game */
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UButton> QuitButton;
 
 #pragma endregion MENU
 

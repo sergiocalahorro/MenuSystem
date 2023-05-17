@@ -28,5 +28,8 @@ public:
 	/** Match type */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FString MatchType = FString("FreeForAll");
-	
+
+	/** Path to lobby map */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FString PathToLobby;
 };

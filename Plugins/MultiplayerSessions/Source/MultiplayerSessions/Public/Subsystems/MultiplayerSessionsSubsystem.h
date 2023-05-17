@@ -7,6 +7,9 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Interfaces/OnlineSessionInterface.h"
 
+// MultiplayerSessions
+#include "Settings/MultiplayerSessionSettings.h"
+
 #include "MultiplayerSessionsSubsystem.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMultiplayerOnCreateSessionCompleteSignature, bool, bWasSuccessful);
@@ -125,6 +128,12 @@ private:
 
 	/** Handle for DestroySessionCompleteDelegate */
 	FDelegateHandle DestroySessionCompleteDelegateHandle;
+
+	/** Tracks whether session can be created on destroy */
+	bool bCreateSessionOnDestroy = false;
+
+	/** Last multiplayer session settings */
+	FMultiplayerSessionSettings LastMultiplayerSessionSettings;
 
 #pragma endregion SESSION
 };

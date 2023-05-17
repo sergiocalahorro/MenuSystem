@@ -6,6 +6,7 @@
 #include "Components/Button.h"
 #include "OnlineSubsystem.h"
 #include "OnlineSessionSettings.h"
+#include "Kismet/KismetSystemLibrary.h"
 
 // MultiplayerSessions
 #include "Subsystems/MultiplayerSessionsSubsystem.h"
@@ -30,6 +31,11 @@ bool UMenu::Initialize()
 	{
 		JoinButton->OnClicked.AddUniqueDynamic(this, &UMenu::JoinButtonClicked);
 	}
+
+	if (QuitButton)
+	{
+		QuitButton->OnClicked.AddUniqueDynamic(this, &UMenu::QuitButtonClicked);
+	}
 	
 	return true;
 }
@@ -46,10 +52,11 @@ void UMenu::NativeDestruct()
 #pragma region MENU
 
 /** Setup menu */
-void UMenu::MenuSetup(const FMultiplayerSessionSettings& InMultiplayerSessionSettings)
+void UMenu::SetupMenu(const FMultiplayerSessionSettings& InMultiplayerSessionSettings)
 {
 	// Set multiplayer session settings
 	MultiplayerSessionSettings = InMultiplayerSessionSettings;
+	MultiplayerSessionSettings.PathToLobby = FString::Printf(TEXT("%s?listen"), *InMultiplayerSessionSettings.PathToLobby);
 
 	// Show widget
 	AddToViewport();
@@ -104,6 +111,8 @@ void UMenu::RemoveMenu()
 /** Callback for HostButton's OnClicked event */
 void UMenu::HostButtonClicked()
 {
+	HostButton->SetIsEnabled(false);
+	
 	if (MultiplayerSessionsSubsystem)
 	{
 		MultiplayerSessionsSubsystem->CreateSession(MultiplayerSessionSettings.NumPublicConnections, MultiplayerSessionSettings.MatchType);
@@ -113,10 +122,18 @@ void UMenu::HostButtonClicked()
 /** Callback for JoinButton's OnClicked event */
 void UMenu::JoinButtonClicked()
 {
+	JoinButton->SetIsEnabled(false);
+	
 	if (MultiplayerSessionsSubsystem)
 	{
 		MultiplayerSessionsSubsystem->FindSessions(MultiplayerSessionSettings.MaxSearchResults);
 	}
+}
+
+/** Callback for QuitButton's OnClicked event */
+void UMenu::QuitButtonClicked()
+{
+	UKismetSystemLibrary::QuitGame(this, nullptr, EQuitPreference::Quit, false);
 }
 
 #pragma endregion MENU
@@ -141,8 +158,12 @@ void UMenu::OnCreateSession(bool bWasSuccessful)
 	{
 		if (UWorld* World = GetWorld())
 		{
-			World->ServerTravel("/Game/ThirdPerson/Maps/Lobby?listen");
+			World->ServerTravel(MultiplayerSessionSettings.PathToLobby);
 		}
+	}
+	else
+	{
+		HostButton->SetIsEnabled(true);
 	}
 }
 
@@ -163,6 +184,11 @@ void UMenu::OnFindSessions(const TArray<FOnlineSessionSearchResult>& SessionResu
 			MultiplayerSessionsSubsystem->JoinSession(Result);
 		}
 	}
+
+	if (!bWasSuccessful || SessionResults.IsEmpty())
+	{
+		JoinButton->SetIsEnabled(true);
+	}
 }
 
 /** Callback called when the multiplayer session join is complete */
@@ -182,6 +208,11 @@ void UMenu::OnJoinSession(EOnJoinSessionCompleteResult::Type Result)
 				PlayerController->ClientTravel(Address, TRAVEL_Absolute);
 			}
 		}
+	}
+
+	if (Result != EOnJoinSessionCompleteResult::Success)
+	{
+		JoinButton->SetIsEnabled(true);
 	}
 }
 
